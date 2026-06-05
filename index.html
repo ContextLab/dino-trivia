@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dino Duel — Two-Player Dinosaur Trivia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,400..900&family=Hanken+Grotesk:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#15110b; --bg-2:#1d160e; --surface:#241b12; --surface-2:#2c2117; --line:#3c2f20;
+    --bone:#f1e7d4; --bone-dim:#b6a78c; --muted:#8a7c63;
+    --amber:#e6a23c; --amber-deep:#c47e21;
+    --p1:#e7943a; --p1-soft:#3a2812; --p2:#5fae8c; --p2-soft:#13312a;
+    --right:#7bc47f; --wrong:#d6644f;
+    --shadow:0 18px 40px -18px rgba(0,0,0,.8);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Hanken Grotesk",system-ui,sans-serif;color:var(--bone);
+    background:
+      radial-gradient(1200px 700px at 78% -10%, #3a2a16 0%, transparent 55%),
+      radial-gradient(900px 600px at 10% 110%, #1f2a23 0%, transparent 50%),
+      var(--bg);
+    min-height:100vh;display:flex;align-items:center;justify-content:center;
+    padding:28px 18px;position:relative;overflow-x:hidden;
+  }
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.05;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .claws{position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5}
+  .claws span{position:absolute;width:2px;height:240px;background:linear-gradient(180deg,transparent,#c47e2155,transparent);transform:rotate(18deg);filter:blur(.3px)}
+  .stage{position:relative;z-index:2;width:100%;max-width:760px}
+
+  .card{
+    background:linear-gradient(180deg,var(--surface),var(--bg-2));
+    border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);
+    padding:34px clamp(20px,4vw,44px) 38px;position:relative;overflow:hidden;
+  }
+  .card::before{content:"";position:absolute;inset:0;border-radius:22px;pointer-events:none;box-shadow:inset 0 1px 0 #ffffff10}
+
+  .eyebrow{font-family:"Space Mono",monospace;letter-spacing:.34em;text-transform:uppercase;font-size:11px;color:var(--amber);margin-bottom:14px}
+  h1{font-family:"Fraunces",serif;font-optical-sizing:auto;font-weight:800;font-size:clamp(48px,10vw,84px);line-height:.92;letter-spacing:-.01em;margin-bottom:6px}
+  h1 .roar{color:var(--amber);font-style:italic}
+  .tagline{color:var(--bone-dim);font-size:clamp(15px,2.4vw,18px);max-width:48ch;margin-bottom:30px}
+
+  .players-setup{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px}
+  @media(max-width:520px){.players-setup{grid-template-columns:1fr}}
+  .pinput{border:1px solid var(--line);border-radius:14px;background:var(--surface-2);padding:14px 16px}
+  .pinput[data-p="1"]{border-color:#5a3c1d} .pinput[data-p="2"]{border-color:#26473c}
+  .pinput label{display:flex;align-items:center;gap:8px;font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+  .dot.p1{background:var(--p1)} .dot.p2{background:var(--p2)}
+  .pinput input{width:100%;border:none;background:transparent;outline:none;color:var(--bone);font-family:"Hanken Grotesk";font-size:19px;font-weight:700}
+  .pinput input::placeholder{color:#6d6049}
+  .vs{text-align:center;font-family:"Fraunces",serif;font-style:italic;color:var(--muted);font-size:15px;margin:2px 0 22px}
+
+  .btn{font-family:"Hanken Grotesk";font-weight:800;font-size:17px;letter-spacing:.01em;cursor:pointer;border:none;border-radius:14px;padding:16px 26px;color:#1a1208;background:linear-gradient(180deg,#f0b658,var(--amber-deep));box-shadow:0 10px 22px -10px #d98f2a;transition:transform .12s ease, box-shadow .12s ease, filter .12s ease}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 16px 26px -12px #d98f2a;filter:brightness(1.04)}
+  .btn:active{transform:translateY(0)}
+  .btn.block{width:100%}
+  .btn.ghost{background:transparent;color:var(--bone);border:1px solid var(--line);box-shadow:none;font-weight:700}
+  .btn.ghost:hover{border-color:var(--amber);color:var(--amber);transform:translateY(-2px)}
+  .btn.p2tone{background:linear-gradient(180deg,#7cc6a4,#3f8e6e);box-shadow:0 10px 22px -10px #5fae8c;color:#08201a}
+  .btn.p2tone:hover{box-shadow:0 16px 26px -12px #5fae8c}
+
+  .scoreboard{display:flex;align-items:stretch;gap:12px;margin-bottom:22px}
+  .score{flex:1;border:1px solid var(--line);border-radius:14px;padding:12px 16px;background:var(--surface-2);display:flex;align-items:center;justify-content:space-between;gap:10px;transition:border-color .2s, box-shadow .2s, background .2s}
+  .score .who{display:flex;align-items:center;gap:9px;min-width:0}
+  .score .name{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:14ch}
+  .score .num{font-family:"Space Mono",monospace;font-weight:700;font-size:26px;line-height:1}
+  .score.p1 .num{color:var(--p1)} .score.p2 .num{color:var(--p2)}
+  .score.active[data-p="1"]{border-color:var(--p1);box-shadow:0 0 0 1px var(--p1),0 0 26px -8px var(--p1);background:linear-gradient(180deg,var(--p1-soft),var(--surface-2))}
+  .score.active[data-p="2"]{border-color:var(--p2);box-shadow:0 0 0 1px var(--p2),0 0 26px -8px var(--p2);background:linear-gradient(180deg,var(--p2-soft),var(--surface-2))}
+
+  .progress{font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .progress .bar{flex:1;height:4px;background:var(--line);border-radius:99px;margin:0 14px;overflow:hidden}
+  .progress .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--amber),#f0b658);border-radius:99px;transition:width .4s ease}
+
+  .turn-banner{display:flex;align-items:center;gap:10px;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:14px}
+  .turn-banner b{font-family:"Hanken Grotesk";font-size:15px;letter-spacing:0;text-transform:none;font-weight:800}
+  .turn-banner[data-p="1"] b{color:var(--p1)} .turn-banner[data-p="2"] b{color:var(--p2)}
+
+  .question{font-family:"Fraunces",serif;font-weight:600;font-size:clamp(23px,4.2vw,32px);line-height:1.18;letter-spacing:-.01em;margin-bottom:24px}
+
+  .options{display:grid;gap:12px}
+  .opt{text-align:left;width:100%;cursor:pointer;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);color:var(--bone);padding:16px 18px;font-size:17px;font-weight:600;font-family:"Hanken Grotesk";display:flex;align-items:center;gap:14px;transition:transform .1s, border-color .15s, background .15s, color .15s}
+  .opt .key{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-family:"Space Mono",monospace;font-weight:700;font-size:14px;background:#15110b;border:1px solid var(--line);color:var(--bone-dim);transition:inherit}
+  .opt:not(:disabled):hover{transform:translateX(4px);border-color:var(--amber)}
+  .opt:not(:disabled):hover .key{border-color:var(--amber);color:var(--amber)}
+  .opt:disabled{cursor:default}
+  .opt.correct{border-color:var(--right);background:linear-gradient(180deg,#1d3322,#172a1c);color:#dff2dc}
+  .opt.correct .key{background:var(--right);color:#0f2012;border-color:var(--right)}
+  .opt.wrong{border-color:var(--wrong);background:linear-gradient(180deg,#33201c,#2a1815);color:#f4d8d1}
+  .opt.wrong .key{background:var(--wrong);color:#2a0f0a;border-color:var(--wrong)}
+  .opt .picks{margin-left:auto;display:flex;gap:6px;flex:none}
+  .pick-chip{font-family:"Space Mono",monospace;font-size:10px;font-weight:700;letter-spacing:.08em;padding:4px 8px;border-radius:99px;text-transform:uppercase}
+  .pick-chip.p1{background:var(--p1-soft);color:var(--p1);border:1px solid var(--p1)}
+  .pick-chip.p2{background:var(--p2-soft);color:var(--p2);border:1px solid var(--p2)}
+
+  .shake{animation:shake .4s}
+  @keyframes shake{10%,90%{transform:translateX(-2px)}30%,70%{transform:translateX(4px)}50%{transform:translateX(-5px)}}
+
+  .reveal-bar{margin-top:22px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px dashed var(--line);padding-top:20px}
+  .reveal-note{font-size:14px;color:var(--bone-dim);max-width:42ch}
+  .reveal-note b{color:var(--bone)}
+
+  /* handoff */
+  .handoff-wrap{text-align:center;padding:18px 0 6px}
+  .lock-badge{display:inline-flex;align-items:center;gap:10px;font-family:"Space Mono",monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);border:1px solid var(--line);background:var(--surface-2);padding:10px 16px;border-radius:99px;margin-bottom:22px}
+  .lock-icon{font-size:15px}
+  .handoff-title{font-family:"Fraunces",serif;font-weight:800;font-size:clamp(34px,7vw,54px);line-height:1;margin-bottom:14px}
+  .handoff-text{color:var(--bone-dim);font-size:18px;line-height:1.55;margin:0 auto 28px;max-width:34ch}
+  .handoff-text b{color:var(--bone)}
+  .handoff-pass{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:26px;font-family:"Space Mono",monospace;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .pass-name{display:inline-flex;align-items:center;gap:8px;font-family:"Hanken Grotesk";font-weight:800;font-size:17px;letter-spacing:0;text-transform:none}
+  .pass-name.p1{color:var(--p1)} .pass-name.p2{color:var(--p2)}
+  .pass-arrow{color:var(--amber);font-size:20px}
+
+  /* results */
+  .trophy{font-size:64px;text-align:center;margin-bottom:6px;filter:drop-shadow(0 6px 14px #00000066)}
+  .result-title{font-family:"Fraunces",serif;font-weight:800;font-size:clamp(34px,7vw,56px);text-align:center;line-height:1;margin-bottom:8px}
+  .result-sub{text-align:center;color:var(--bone-dim);margin-bottom:26px;font-size:17px}
+  .final-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
+  @media(max-width:520px){.final-grid{grid-template-columns:1fr}}
+  .final{border:1px solid var(--line);border-radius:16px;padding:20px;text-align:center;background:var(--surface-2);position:relative}
+  .final.win[data-p="1"]{border-color:var(--p1);box-shadow:0 0 30px -10px var(--p1)}
+  .final.win[data-p="2"]{border-color:var(--p2);box-shadow:0 0 30px -10px var(--p2)}
+  .final .crown{position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:24px}
+  .final .fname{font-weight:800;font-size:19px;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+  .final .fscore{font-family:"Space Mono",monospace;font-size:46px;font-weight:700;line-height:1}
+  .final[data-p="1"] .fscore{color:var(--p1)} .final[data-p="2"] .fscore{color:var(--p2)}
+  .final .fof{font-family:"Space Mono",monospace;color:var(--muted);font-size:13px;margin-top:4px}
+
+  .hidden{display:none !important}
+  .fade{animation:fade .45s ease both}
+  @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .stagger > *{opacity:0;animation:fade .5s ease forwards}
+  .stagger > *:nth-child(1){animation-delay:.05s}
+  .stagger > *:nth-child(2){animation-delay:.13s}
+  .stagger > *:nth-child(3){animation-delay:.21s}
+  .stagger > *:nth-child(4){animation-delay:.29s}
+  .stagger > *:nth-child(5){animation-delay:.37s}
+  .stagger > *:nth-child(6){animation-delay:.45s}
+</style>
+</head>
+<body>
+  <div class="claws">
+    <span style="left:12%;top:-40px"></span><span style="left:14%;top:-40px"></span><span style="left:16%;top:-40px"></span>
+    <span style="right:10%;bottom:-40px;transform:rotate(-18deg)"></span><span style="right:12%;bottom:-40px;transform:rotate(-18deg)"></span><span style="right:14%;bottom:-40px;transform:rotate(-18deg)"></span>
+  </div>
+
+  <div class="stage">
+    <!-- INTRO -->
+    <section id="intro" class="card stagger">
+      <div class="eyebrow">Field Guide · Mesozoic Edition</div>
+      <h1>Dino&nbsp;<span class="roar">Duel</span></h1>
+      <p class="tagline">A head-to-head excavation of prehistoric knowledge. Two rivals, fifteen questions drawn fresh from a pool of 100+, one apex champion — a different dig every time.</p>
+      <div class="players-setup">
+        <div class="pinput" data-p="1"><label><span class="dot p1"></span> Player One</label><input id="name1" type="text" maxlength="16" placeholder="Player 1" autocomplete="off"></div>
+        <div class="pinput" data-p="2"><label><span class="dot p2"></span> Player Two</label><input id="name2" type="text" maxlength="16" placeholder="Player 2" autocomplete="off"></div>
+      </div>
+      <p class="vs">— take turns; the device passes between you so no one sees the other's answer —</p>
+      <button class="btn block" id="startBtn">Begin the Dig →</button>
+    </section>
+
+    <!-- GAME -->
+    <section id="game" class="card hidden">
+      <div class="scoreboard">
+        <div class="score p1" id="sc1" data-p="1"><span class="who"><span class="dot p1"></span><span class="name" id="scName1">Player 1</span></span><span class="num" id="scNum1">0</span></div>
+        <div class="score p2" id="sc2" data-p="2"><span class="who"><span class="dot p2"></span><span class="name" id="scName2">Player 2</span></span><span class="num" id="scNum2">0</span></div>
+      </div>
+      <div class="progress">
+        <span id="qCount">Q 1 / 15</span>
+        <span class="bar"><i id="qBar" style="width:0%"></i></span>
+        <span id="qPct">0%</span>
+      </div>
+      <div class="turn-banner" id="turnBanner" data-p="1">
+        <span class="dot p1" id="turnDot"></span>
+        <span>Now answering — <b id="turnName">Player 1</b></span>
+      </div>
+      <div class="question" id="questionText">Question goes here</div>
+      <div class="options" id="options"></div>
+      <div class="reveal-bar hidden" id="revealBar">
+        <span class="reveal-note" id="revealNote"></span>
+        <button class="btn" id="nextBtn">Next →</button>
+      </div>
+    </section>
+
+    <!-- HANDOFF -->
+    <section id="handoff" class="card hidden">
+      <div class="handoff-wrap">
+        <div class="lock-badge"><span class="lock-icon">🔒</span> Answer locked &amp; hidden</div>
+        <h2 class="handoff-title">Pass the device</h2>
+        <p class="handoff-text"><b id="hoLockedName">Player 1</b> has locked in their guess. Hand the device over — no peeking at what they picked!</p>
+        <div class="handoff-pass">
+          <span class="pass-name p1" id="hoFromName"><span class="dot p1"></span>Player 1</span>
+          <span class="pass-arrow">→</span>
+          <span class="pass-name p2" id="hoToName"><span class="dot p2"></span>Player 2</span>
+        </div>
+        <button class="btn block p2tone" id="readyBtn">I'm ready →</button>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section id="results" class="card hidden">
+      <div class="stagger">
+        <div class="trophy" id="trophy">🦖</div>
+        <div class="result-title" id="resultTitle">Champion</div>
+        <div class="result-sub" id="resultSub"></div>
+        <div class="final-grid">
+          <div class="final" id="final1" data-p="1"><div class="crown hidden" id="crown1">👑</div><div class="fname"><span class="dot p1"></span><span id="fName1">Player 1</span></div><div class="fscore" id="fScore1">0</div><div class="fof" id="fOf1">of 15</div></div>
+          <div class="final" id="final2" data-p="2"><div class="crown hidden" id="crown2">👑</div><div class="fname"><span class="dot p2"></span><span id="fName2">Player 2</span></div><div class="fscore" id="fScore2">0</div><div class="fof" id="fOf2">of 15</div></div>
+        </div>
+        <button class="btn block ghost" id="againBtn">Excavate Again ↺</button>
+      </div>
+    </section>
+  </div>
+
+<script>
+/* ---- Question pool: {q, a:<correct>, w:[3 wrong]} ---- */
+const POOL = [
+  {q:`What does the name "Tyrannosaurus" mean?`, a:`Tyrant lizard`, w:[`Terrible claw`,`Three-horned face`,`Swift runner`]},
+  {q:`What does "Triceratops" mean?`, a:`Three-horned face`, w:[`Roof lizard`,`Tyrant lizard`,`Helmet head`]},
+  {q:`What does "Velociraptor" mean?`, a:`Swift thief`, w:[`Terrible lizard`,`Roof lizard`,`Spined lizard`]},
+  {q:`What does "Stegosaurus" mean?`, a:`Roof lizard`, w:[`Armored lizard`,`Spiked tail`,`Plated king`]},
+  {q:`What does "Pterodactylus" mean?`, a:`Winged finger`, w:[`Winged and toothless`,`Terrible wing`,`Sky lizard`]},
+  {q:`What does "Brachiosaurus" mean?`, a:`Arm lizard`, w:[`Long-neck lizard`,`Thunder lizard`,`Giant lizard`]},
+  {q:`What does "Ankylosaurus" mean?`, a:`Fused lizard`, w:[`Armored lizard`,`Club tail`,`Spiked lizard`]},
+  {q:`What does "Spinosaurus" mean?`, a:`Spine lizard`, w:[`Sail lizard`,`Fish lizard`,`River king`]},
+  {q:`What does "Diplodocus" mean?`, a:`Double beam`, w:[`Long neck`,`Double tail`,`Two-headed lizard`]},
+  {q:`What does "Maiasaura" mean?`, a:`Good mother lizard`, w:[`Egg lizard`,`Nest builder`,`Caring lizard`]},
+  {q:`What does "Oviraptor" mean?`, a:`Egg thief`, w:[`Bird mimic`,`Quick robber`,`Beak face`]},
+  {q:`What does "Deinonychus" mean?`, a:`Terrible claw`, w:[`Terrible lizard`,`Swift hunter`,`Sharp tooth`]},
+  {q:`What does "Pachycephalosaurus" mean?`, a:`Thick-headed lizard`, w:[`Dome head`,`Bone skull`,`Hard head`]},
+  {q:`What does "Iguanodon" mean?`, a:`Iguana tooth`, w:[`Iguana lizard`,`Thumb spike`,`Plant eater`]},
+  {q:`What does "Apatosaurus" mean?`, a:`Deceptive lizard`, w:[`Thunder lizard`,`Giant lizard`,`False king`]},
+  {q:`What does "Brontosaurus" mean?`, a:`Thunder lizard`, w:[`Giant lizard`,`Earth shaker`,`Deceptive lizard`]},
+  {q:`What does "Allosaurus" mean?`, a:`Different lizard`, w:[`Strange lizard`,`Great hunter`,`Sharp tooth`]},
+  {q:`What does "Compsognathus" mean?`, a:`Elegant jaw`, w:[`Tiny hunter`,`Quick lizard`,`Small tooth`]},
+  {q:`What does "Gallimimus" mean?`, a:`Chicken mimic`, w:[`Ostrich lizard`,`Fast runner`,`Bird foot`]},
+  {q:`What does "Therizinosaurus" mean?`, a:`Scythe lizard`, w:[`Claw lizard`,`Sloth lizard`,`Reaper king`]},
+  {q:`The word "dinosaur" comes from Greek words meaning…`, a:`Terrible lizard`, w:[`Ancient lizard`,`Giant reptile`,`Stone beast`]},
+  {q:`What does "Pteranodon" mean?`, a:`Winged and toothless`, w:[`Winged finger`,`Terrible wing`,`Sea dragon`]},
+  {q:`Dinosaurs are traditionally split into two groups based on the structure of their…`, a:`Hips`, w:[`Teeth`,`Skull`,`Feet`]},
+  {q:`The two main dinosaur groups are called…`, a:`Bird-hipped and lizard-hipped`, w:[`Long-neck and short-neck`,`Meat-eaters and plant-eaters`,`Armored and unarmored`]},
+  {q:`Surprisingly, birds evolved from which group of dinosaurs?`, a:`Lizard-hipped (saurischians)`, w:[`Bird-hipped (ornithischians)`,`Pterosaurs`,`Marine reptiles`]},
+  {q:`Which living animals are the modern descendants of dinosaurs?`, a:`Birds`, w:[`Crocodiles`,`Lizards`,`Turtles`]},
+  {q:`Apart from birds, the closest living relatives of dinosaurs are…`, a:`Crocodilians`, w:[`Lizards`,`Snakes`,`Turtles`]},
+  {q:`Giant, long-necked plant-eaters like Brachiosaurus belong to which group?`, a:`Sauropods`, w:[`Theropods`,`Ornithopods`,`Ceratopsians`]},
+  {q:`Two-legged, mostly meat-eating dinosaurs like T. rex belong to which group?`, a:`Theropods`, w:[`Sauropods`,`Ceratopsians`,`Stegosaurs`]},
+  {q:`Stones some dinosaurs swallowed to help grind food in their stomachs are called…`, a:`Gastroliths`, w:[`Coprolites`,`Ossicles`,`Otoliths`]},
+  {q:`What do scientists call fossilized dinosaur dung?`, a:`Coprolite`, w:[`Gastrolith`,`Amber`,`Trilobite`]},
+  {q:`Dinosaurs reproduced by…`, a:`Laying eggs`, w:[`Live birth`,`Spores`,`Budding`]},
+  {q:`Like birds, many dinosaurs had lightweight, hollow…`, a:`Bones`, w:[`Teeth`,`Horns`,`Claws`]},
+  {q:`Small theropods such as Velociraptor were covered in…`, a:`Feathers`, w:[`Scales only`,`Fur`,`Shells`]},
+  {q:`The very largest dinosaurs ate…`, a:`Plants`, w:[`Meat`,`Insects`,`Fish`]},
+  {q:`Despite its huge claws, Therizinosaurus mostly ate…`, a:`Plants`, w:[`Meat`,`Fish`,`Insects`]},
+  {q:`The era when dinosaurs lived is called the…`, a:`Mesozoic`, w:[`Paleozoic`,`Cenozoic`,`Precambrian`]},
+  {q:`The Mesozoic has three periods: Triassic, Jurassic, and…`, a:`Cretaceous`, w:[`Permian`,`Paleogene`,`Devonian`]},
+  {q:`In which period did the first dinosaurs appear?`, a:`Triassic`, w:[`Jurassic`,`Cretaceous`,`Permian`]},
+  {q:`Which of the three Mesozoic periods came last?`, a:`Cretaceous`, w:[`Triassic`,`Jurassic`,`Permian`]},
+  {q:`The non-bird dinosaurs went extinct about…`, a:`66 million years ago`, w:[`6 million years ago`,`250 million years ago`,`600 million years ago`]},
+  {q:`The extinction event that ended the age of dinosaurs is known as the…`, a:`K–Pg extinction`, w:[`Permian extinction`,`Ice Age`,`Great Dying`]},
+  {q:`The "Great Dying," Earth's largest mass extinction, happened at the end of the…`, a:`Permian`, w:[`Cretaceous`,`Triassic`,`Jurassic`]},
+  {q:`The leading explanation for the dinosaurs' extinction involves…`, a:`An asteroid impact`, w:[`A great flood`,`An ice-age freeze`,`A disease`]},
+  {q:`The giant impact crater linked to the dinosaur extinction is located in…`, a:`Mexico`, w:[`Arizona`,`Siberia`,`Australia`]},
+  {q:`Dinosaurs dominated the land for roughly how long?`, a:`Over 150 million years`, w:[`About 1 million years`,`About 10 million years`,`About 500 million years`]},
+  {q:`Did any humans ever live alongside the non-bird dinosaurs?`, a:`No`, w:[`Yes`,`Only in Africa`,`Only briefly`]},
+  {q:`Did woolly mammoths live at the same time as the dinosaurs?`, a:`No — long after`, w:[`Yes`,`Only the small ones`,`Only in water`]},
+  {q:`The largest dinosaurs of all were the…`, a:`Sauropods`, w:[`Theropods`,`Raptors`,`Ceratopsians`]},
+  {q:`Which of these was among the largest land animals that ever lived?`, a:`Argentinosaurus`, w:[`Velociraptor`,`Compsognathus`,`Microraptor`]},
+  {q:`In real life, Velociraptor was roughly the size of a…`, a:`Turkey`, w:[`Elephant`,`Horse`,`Bus`]},
+  {q:`Which of these was a tiny, roughly chicken-sized dinosaur?`, a:`Compsognathus`, w:[`Brachiosaurus`,`Triceratops`,`Apatosaurus`]},
+  {q:`About how long was an adult Tyrannosaurus rex?`, a:`About 12 meters (40 ft)`, w:[`About 2 meters`,`About 30 meters`,`About 60 meters`]},
+  {q:`Which is thought to be the longest meat-eating dinosaur?`, a:`Spinosaurus`, w:[`Velociraptor`,`Compsognathus`,`Stegosaurus`]},
+  {q:`Stegosaurus is famous for having a surprisingly small…`, a:`Brain`, w:[`Tail`,`Mouth`,`Heart`]},
+  {q:`Brachiosaurus was unusual because…`, a:`Its front legs were longer than its back legs`, w:[`It could fly`,`It had body armor`,`It had no teeth`]},
+  {q:`Stegosaurus had two rows of these running along its back…`, a:`Plates`, w:[`Horns`,`Sails`,`Fins`]},
+  {q:`The spikes on a Stegosaurus's tail are informally nicknamed the…`, a:`Thagomizer`, w:[`Frill`,`Club`,`Sail`]},
+  {q:`Ankylosaurus had a tail ending in a…`, a:`Bony club`, w:[`Spike`,`Sail`,`Fan`]},
+  {q:`How many horns did Triceratops have?`, a:`Three`, w:[`One`,`Two`,`Five`]},
+  {q:`Spinosaurus had a large structure on its back: a…`, a:`Sail`, w:[`Shell`,`Hump of fur`,`Row of plates`]},
+  {q:`Parasaurolophus is known for a long, hollow…`, a:`Head crest`, w:[`Tail`,`Neck frill`,`Nose horn`]},
+  {q:`Velociraptor had a large, curved…`, a:`Sickle claw on each foot`, w:[`Horn on its nose`,`Club on its tail`,`Sail on its back`]},
+  {q:`Pachycephalosaurus had a thick…`, a:`Dome on its skull`, w:[`Nose horn`,`Neck frill`,`Beak`]},
+  {q:`Therizinosaurus is famous for its enormous…`, a:`Claws`, w:[`Teeth`,`Horns`,`Tail spikes`]},
+  {q:`"Duck-billed" hadrosaurs got their nickname from their…`, a:`Broad, flat snouts`, w:[`Webbed feet`,`Flat tails`,`Quacking calls`]},
+  {q:`Iguanodon had a distinctive…`, a:`Thumb spike`, w:[`Tail club`,`Nose horn`,`Head crest`]},
+  {q:`Sauropods likely used their long necks to reach…`, a:`High vegetation`, w:[`Underwater plants`,`Burrowing prey`,`Insects in soil`]},
+  {q:`Microraptor was unusual because it had…`, a:`Four wings`, w:[`Two heads`,`No legs`,`A shell`]},
+  {q:`Spinosaurus is thought to have eaten mainly…`, a:`Fish`, w:[`Leaves`,`Insects`,`Only large dinosaurs`]},
+  {q:`Spinosaurus is now believed to have been adapted to life…`, a:`In and around water`, w:[`High up in trees`,`In polar ice`,`Deep underground`]},
+  {q:`Archaeopteryx is famous as an early link between dinosaurs and…`, a:`Birds`, w:[`Mammals`,`Fish`,`Crocodiles`]},
+  {q:`Maiasaura provided evidence that some dinosaurs…`, a:`Cared for their young`, w:[`Always lived alone`,`Were fully aquatic`,`Could fly`]},
+  {q:`Coprolites (fossil dung) mainly help scientists learn about a dinosaur's…`, a:`Diet`, w:[`Color`,`Voice`,`Name`]},
+  {q:`Fossilized dinosaur footprints are an example of…`, a:`Trace fossils`, w:[`Body fossils`,`Amber`,`Minerals only`]},
+  {q:`Tree resin that can preserve ancient insects is called…`, a:`Amber`, w:[`Coal`,`Limestone`,`Obsidian`]},
+  {q:`The study of ancient life through fossils is called…`, a:`Paleontology`, w:[`Archaeology`,`Astronomy`,`Meteorology`]},
+  {q:`A scientist who studies dinosaurs is a…`, a:`Paleontologist`, w:[`Archaeologist`,`Astronomer`,`Botanist`]},
+  {q:`Some scientists think Deinonychus may have hunted in…`, a:`Packs`, w:[`Water`,`Trees`,`Total isolation`]},
+  {q:`Which film popularized the idea of cloning dinosaurs from amber-trapped DNA?`, a:`Jurassic Park`, w:[`King Kong`,`Godzilla`,`The Land Before Time`]},
+  {q:`Who coined the word "dinosaur" (Dinosauria) in 1842?`, a:`Richard Owen`, w:[`Charles Darwin`,`Mary Anning`,`Othniel Marsh`]},
+  {q:`The fierce 1800s fossil-hunting rivalry between Cope and Marsh is called the…`, a:`Bone Wars`, w:[`Fossil Rush`,`Great Dig`,`Dino Race`]},
+  {q:`Which early fossil hunter is famous for marine-reptile finds on England's coast?`, a:`Mary Anning`, w:[`Marie Curie`,`Jane Goodall`,`Ada Lovelace`]},
+  {q:`The most complete Tyrannosaurus rex skeleton ever found is nicknamed…`, a:`Sue`, w:[`Rex`,`Dino`,`Tiny`]},
+  {q:`Tyrannosaurus rex fossils are most associated with which region?`, a:`Western North America`, w:[`Eastern Europe`,`North Africa`,`Southeast Asia`]},
+  {q:`Velociraptor fossils were first discovered in…`, a:`Mongolia`, w:[`The USA`,`England`,`Brazil`]},
+  {q:`The famous "Fighting Dinosaurs" fossil shows a Velociraptor locked in combat with a…`, a:`Protoceratops`, w:[`Triceratops`,`T. rex`,`Stegosaurus`]},
+  {q:`The name "Brontosaurus" is notable because it was…`, a:`Doubted for decades, then accepted again`, w:[`Never actually used`,`Always known to be a hoax`,`Originally given to a bird`]},
+  {q:`Pterodactyls were technically…`, a:`Pterosaurs (not dinosaurs)`, w:[`Flying dinosaurs`,`Birds`,`Bats`]},
+  {q:`The long-necked Plesiosaurus that swam the ancient seas was a…`, a:`Marine reptile (not a dinosaur)`, w:[`Dinosaur`,`Fish`,`Whale`]},
+  {q:`Dimetrodon, the sail-backed creature often sold with dino toys, was actually…`, a:`Not a dinosaur (a relative of mammals)`, w:[`A dinosaur`,`A pterosaur`,`A fish`]},
+  {q:`Mosasaurus was a giant…`, a:`Marine reptile`, w:[`Dinosaur`,`Whale`,`Shark`]},
+  {q:`Pteranodon belongs to which group?`, a:`Pterosaurs`, w:[`Sauropods`,`Theropods`,`Ceratopsians`]},
+  {q:`Which of these was NOT a true dinosaur?`, a:`Pteranodon`, w:[`Iguanodon`,`Allosaurus`,`Compsognathus`]},
+  {q:`Triceratops's horns and frill were most likely used for…`, a:`Defense and display`, w:[`Swimming`,`Flying`,`Digging burrows`]},
+  {q:`Tyrannosaurus rex was famous for having…`, a:`Very short arms`, w:[`Very long arms`,`Feathered wings`,`No arms at all`]},
+  {q:`Which dinosaur had a large bony frill and three facial horns?`, a:`Triceratops`, w:[`Stegosaurus`,`Ankylosaurus`,`Diplodocus`]},
+  {q:`Which duck-billed dinosaur had a long, tube-shaped head crest?`, a:`Parasaurolophus`, w:[`Triceratops`,`Ankylosaurus`,`Velociraptor`]},
+  {q:`Which heavily armored dinosaur is sometimes called a "living tank"?`, a:`Ankylosaurus`, w:[`Brachiosaurus`,`Velociraptor`,`Pteranodon`]},
+  {q:`Which fast, ostrich-like dinosaur's name means "chicken mimic"?`, a:`Gallimimus`, w:[`Velociraptor`,`Stegosaurus`,`Iguanodon`]},
+  {q:`Which Jurassic herbivore had back plates and a spiked tail?`, a:`Stegosaurus`, w:[`Spinosaurus`,`Pachycephalosaurus`,`Gallimimus`]},
+  {q:`Which dinosaur had a thick bony dome possibly used for head-butting?`, a:`Pachycephalosaurus`, w:[`Ankylosaurus`,`Diplodocus`,`Spinosaurus`]},
+];
+
+const QUESTIONS_PER_GAME = 15;
+const KEYS = ['A','B','C','D'];
+
+const state = { names:['Player 1','Player 2'], scores:[0,0], qi:0, phase:'p1', picks:[null,null], questions:[] };
+
+const $ = id => document.getElementById(id);
+const intro=$('intro'), game=$('game'), handoff=$('handoff'), results=$('results');
+
+$('startBtn').addEventListener('click', start);
+$('nextBtn').addEventListener('click', nextQuestion);
+$('readyBtn').addEventListener('click', player2Ready);
+$('againBtn').addEventListener('click', () => location.reload());
+
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; }
+
+function buildGame(n){
+  const picked = shuffle(POOL.slice()).slice(0, Math.min(n, POOL.length));
+  return picked.map(item=>{
+    const opts = shuffle([item.a, ...item.w]);
+    return { q:item.q, options:opts, correct:opts.indexOf(item.a) };
+  });
+}
+
+function start(){
+  const n1 = $('name1').value.trim() || 'Player 1';
+  const n2 = $('name2').value.trim() || 'Player 2';
+  state.names=[n1,n2]; state.scores=[0,0]; state.qi=0; state.phase='p1'; state.picks=[null,null];
+  state.questions = buildGame(QUESTIONS_PER_GAME);
+  const total = state.questions.length;
+  $('scName1').textContent=n1; $('scName2').textContent=n2;
+  $('fName1').textContent=n1; $('fName2').textContent=n2;
+  $('scNum1').textContent='0'; $('scNum2').textContent='0';
+  $('fOf1').textContent='of '+total; $('fOf2').textContent='of '+total;
+  $('hoFromName').innerHTML='<span class="dot p1"></span>'+escapeHtml(n1);
+  $('hoToName').innerHTML='<span class="dot p2"></span>'+escapeHtml(n2);
+  intro.classList.add('hidden'); results.classList.add('hidden'); handoff.classList.add('hidden');
+  game.classList.remove('hidden'); game.classList.add('fade');
+  renderQuestion();
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function renderQuestion(){
+  const item = state.questions[state.qi];
+  state.phase='p1'; state.picks=[null,null];
+  const total = state.questions.length;
+  $('qCount').textContent = `Q ${state.qi+1} / ${total}`;
+  const pct = Math.round((state.qi+1)/total*100);
+  $('qBar').style.width = pct+'%'; $('qPct').textContent = pct+'%';
+  $('questionText').textContent = item.q;
+  $('revealBar').classList.add('hidden');
+  setTurn(0);
+  renderOptions();
+}
+
+function renderOptions(){
+  const item = state.questions[state.qi];
+  const box = $('options'); box.innerHTML='';
+  item.options.forEach((opt,i)=>{
+    const b=document.createElement('button');
+    b.className='opt'; b.dataset.i=i;
+    b.innerHTML=`<span class="key">${KEYS[i]}</span><span class="label">${escapeHtml(opt)}</span><span class="picks"></span>`;
+    b.addEventListener('click',()=>choose(i));
+    box.appendChild(b);
+  });
+}
+
+function setTurn(p){
+  const banner=$('turnBanner');
+  banner.dataset.p = p+1;
+  $('turnDot').className = 'dot ' + (p===0?'p1':'p2');
+  $('turnDot').style.background='';
+  banner.querySelector('span:last-child').innerHTML = `Now answering — <b id="turnName">${escapeHtml(state.names[p])}</b>`;
+  $('sc1').classList.toggle('active', p===0);
+  $('sc2').classList.toggle('active', p===1);
+  $('sc1').dataset.p='1'; $('sc2').dataset.p='2';
+}
+
+function choose(i){
+  if(state.phase==='p1'){
+    state.picks[0]=i;
+    showHandoff();
+  } else if(state.phase==='p2'){
+    state.picks[1]=i;
+    reveal();
+  }
+}
+
+function showHandoff(){
+  state.phase='handoff';
+  $('hoLockedName').textContent = state.names[0];
+  game.classList.add('hidden');
+  handoff.classList.remove('hidden'); handoff.classList.remove('fade'); void handoff.offsetWidth; handoff.classList.add('fade');
+}
+
+function player2Ready(){
+  handoff.classList.add('hidden');
+  game.classList.remove('hidden'); game.classList.remove('fade'); void game.offsetWidth; game.classList.add('fade');
+  state.phase='p2';
+  setTurn(1);
+  renderOptions(); // fresh buttons — no trace of Player 1's pick
+}
+
+function reveal(){
+  state.phase='reveal';
+  $('sc1').classList.remove('active'); $('sc2').classList.remove('active');
+  const banner=$('turnBanner');
+  banner.dataset.p='0';
+  $('turnDot').className='dot'; $('turnDot').style.background='var(--amber)';
+  banner.querySelector('span:last-child').innerHTML='<b style="color:var(--amber)">Round complete</b> — review the answer below';
+
+  const item = state.questions[state.qi];
+  const correct = item.correct;
+  const btns = [...$('options').children];
+  btns.forEach((b,idx)=>{
+    b.disabled=true;
+    const picks=b.querySelector('.picks'); picks.innerHTML='';
+    if(state.picks[0]===idx) picks.appendChild(chip(0));
+    if(state.picks[1]===idx) picks.appendChild(chip(1));
+    if(idx===correct){ b.classList.add('correct'); }
+    else if(state.picks[0]===idx || state.picks[1]===idx){ b.classList.add('wrong','shake'); }
+  });
+
+  let gained=[];
+  [0,1].forEach(p=>{ if(state.picks[p]===correct){ state.scores[p]++; gained.push(p); } });
+  $('scNum1').textContent=state.scores[0];
+  $('scNum2').textContent=state.scores[1];
+
+  const answer = item.options[correct];
+  let who;
+  if(gained.length===2) who = `Both ${state.names[0]} and ${state.names[1]} nailed it.`;
+  else if(gained.length===1) who = `Point to ${state.names[gained[0]]}.`;
+  else who = `Nobody got this one.`;
+  $('revealNote').innerHTML = `Correct answer: <b>${escapeHtml(answer)}</b>. ${escapeHtml(who)}`;
+
+  $('nextBtn').textContent = (state.qi === state.questions.length-1) ? 'See Results →' : 'Next →';
+  const rb=$('revealBar'); rb.classList.remove('hidden'); rb.classList.add('fade');
+}
+
+function chip(p){
+  const c=document.createElement('span');
+  c.className='pick-chip '+(p===0?'p1':'p2');
+  c.textContent = state.names[p].length>8 ? state.names[p].slice(0,8) : state.names[p];
+  return c;
+}
+
+function nextQuestion(){
+  if(state.qi === state.questions.length-1){ showResults(); return; }
+  state.qi++;
+  game.classList.remove('fade'); void game.offsetWidth; game.classList.add('fade');
+  renderQuestion();
+}
+
+function showResults(){
+  game.classList.add('hidden');
+  results.classList.remove('hidden');
+  const [s1,s2]=state.scores;
+  $('fScore1').textContent=s1; $('fScore2').textContent=s2;
+  $('crown1').classList.add('hidden'); $('crown2').classList.add('hidden');
+  $('final1').classList.remove('win'); $('final2').classList.remove('win');
+
+  let title,sub,trophy='🦖';
+  if(s1>s2){
+    title = `${state.names[0]} wins!`;
+    sub = `${state.names[0]} out-dug the competition ${s1}\u2013${s2}.`;
+    $('crown1').classList.remove('hidden'); $('final1').classList.add('win'); trophy='🏆';
+  } else if(s2>s1){
+    title = `${state.names[1]} wins!`;
+    sub = `${state.names[1]} out-dug the competition ${s2}\u2013${s1}.`;
+    $('crown2').classList.remove('hidden'); $('final2').classList.add('win'); trophy='🏆';
+  } else {
+    title = `It's a tie!`;
+    sub = `Both rivals finished dead even at ${s1}\u2013${s2}. A true standoff of the Mesozoic.`;
+    $('crown1').classList.remove('hidden'); $('crown2').classList.remove('hidden');
+    $('final1').classList.add('win'); $('final2').classList.add('win'); trophy='🤝';
+  }
+  $('trophy').textContent=trophy;
+  $('resultTitle').textContent=title;
+  $('resultSub').textContent=sub;
+}
+
+document.addEventListener('keydown',e=>{
+  if(!handoff.classList.contains('hidden')){ if(e.key==='Enter') player2Ready(); return; }
+  if(game.classList.contains('hidden')) return;
+  if(state.phase==='reveal'){ if(e.key==='Enter') nextQuestion(); return; }
+  const map={a:0,b:1,c:2,d:3,'1':0,'2':1,'3':2,'4':3};
+  const i=map[e.key.toLowerCase()];
+  if(i!==undefined) choose(i);
+});
+</script>
+</body>
+</html>
